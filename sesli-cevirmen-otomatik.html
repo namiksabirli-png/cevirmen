@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anlık Sesli Çevirmen</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  min-height:100vh;
+  font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+  background:
+    radial-gradient(circle at top,#dff4ff 0%,#f5f8fb 42%,#dce8f2 100%);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:18px;
+  color:#253040;
+}
+
+.container{
+  width:100%;
+  max-width:560px;
+  background:#ffffff;
+  border-radius:24px;
+  padding:28px;
+  box-shadow:0 18px 60px rgba(30,55,90,.16);
+  text-align:center;
+  border:1px solid rgba(60,100,140,.12);
+}
+
+h1{
+  font-size:1.55rem;
+  color:#1f2d3d;
+  margin-bottom:8px;
+}
+
+.subtitle{
+  font-size:.9rem;
+  color:#667085;
+  line-height:1.45;
+  margin-bottom:20px;
+}
+
+.direction-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  background:#eef5ff;
+  color:#155db3;
+  font-weight:900;
+  font-size:.85rem;
+  padding:8px 18px;
+  border-radius:999px;
+  margin-bottom:20px;
+  letter-spacing:.4px;
+}
+
+.direction-badge .auto-tag{
+  background:#1677ff;
+  color:#fff;
+  font-size:.65rem;
+  padding:3px 8px;
+  border-radius:999px;
+  text-transform:uppercase;
+  letter-spacing:.6px;
+}
+
+.mic-btn{
+  width:92px;
+  height:92px;
+  border-radius:50%;
+  border:none;
+  background:linear-gradient(135deg,#1677ff,#005bd3);
+  color:white;
+  font-size:2.4rem;
+  cursor:pointer;
+  transition:.2s;
+  box-shadow:0 10px 26px rgba(22,119,255,.32);
+  outline:none;
+}
+
+.mic-btn:hover{transform:scale(1.04)}
+.mic-btn:active{transform:scale(.98)}
+
+.mic-btn.listening{
+  background:linear-gradient(135deg,#ff4d4f,#b42318);
+  animation:pulse 1.3s infinite;
+  box-shadow:0 10px 28px rgba(220,53,69,.32);
+}
+
+.mic-btn:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+  transform:none;
+}
+
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(255,77,79,.45)}
+  70%{box-shadow:0 0 0 18px rgba(255,77,79,0)}
+  100%{box-shadow:0 0 0 0 rgba(255,77,79,0)}
+}
+
+.status{
+  min-height:24px;
+  margin:16px 0 18px;
+  font-size:.9rem;
+  color:#667085;
+  font-weight:700;
+}
+
+.result-box{
+  text-align:left;
+  display:grid;
+  gap:14px;
+}
+
+.box{
+  background:#f8fafc;
+  border:1px solid #e6edf5;
+  border-radius:18px;
+  padding:16px;
+  min-height:92px;
+}
+
+.box-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+}
+
+.box-title{
+  font-size:.78rem;
+  color:#667085;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+}
+
+.lang-tag{
+  font-size:.7rem;
+  font-weight:900;
+  color:#155db3;
+  background:#eef5ff;
+  padding:2px 8px;
+  border-radius:999px;
+  margin-left:8px;
+  vertical-align:middle;
+}
+
+.speak-btn{
+  border:none;
+  background:#eef5ff;
+  color:#155db3;
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  cursor:pointer;
+  font-size:1.05rem;
+  transition:.15s;
+  flex-shrink:0;
+}
+
+.speak-btn:hover{background:#dcecff;transform:scale(1.08)}
+.speak-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+.speak-btn.speaking{
+  background:#1677ff;
+  color:#fff;
+  animation:speakPulse 1s infinite;
+}
+
+@keyframes speakPulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.1)}
+}
+
+.text{
+  font-size:1.05rem;
+  line-height:1.5;
+  color:#1f2d3d;
+  word-break:break-word;
+}
+
+.translated{
+  color:#0f5fb8;
+  font-weight:800;
+}
+
+.actions{
+  display:flex;
+  gap:10px;
+  margin-top:18px;
+  flex-wrap:wrap;
+}
+
+.action-btn{
+  flex:1;
+  min-width:130px;
+  border:none;
+  border-radius:14px;
+  padding:12px 14px;
+  cursor:pointer;
+  background:#eef5ff;
+  color:#155db3;
+  font-weight:900;
+  transition:.15s;
+}
+
+.action-btn:hover{background:#dcecff}
+
+.note{
+  margin-top:16px;
+  font-size:.78rem;
+  color:#7a8493;
+  line-height:1.45;
+}
+
+.error{
+  color:#b42318 !important;
+}
+
+.success{
+  color:#18753c !important;
+}
+
+@media(max-width:520px){
+  .container{padding:22px}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🎙️ Anlık Sesli Çevirmen</h1>
+  <div class="subtitle">Mikrofona bas, konuş; dil otomatik algılanır ve karşı dile çevrilir.</div>
+
+  <div class="direction-badge">
+    <span class="auto-tag">Otomatik</span>
+    <span id="directionText">Türkçe ⇄ İngilizce</span>
+  </div>
+
+  <br>
+
+  <button id="micBtn" class="mic-btn" aria-label="Mikrofonu başlat">🎤</button>
+  <div id="status" class="status">Konuşmak için mikrofona basın.</div>
+
+  <div class="result-box">
+    <div class="box">
+      <div class="box-header">
+        <div class="box-title">Algılanan Metin <span id="originalLangTag" class="lang-tag" hidden></span></div>
+        <button class="speak-btn" id="speakOriginal" title="Algılanan metni seslendir" aria-label="Algılanan metni seslendir">🔊</button>
+      </div>
+      <div id="originalText" class="text">...</div>
+    </div>
+
+    <div class="box">
+      <div class="box-header">
+        <div class="box-title">Çeviri <span id="translatedLangTag" class="lang-tag" hidden></span></div>
+        <button class="speak-btn" id="speakTranslated" title="Çeviriyi seslendir" aria-label="Çeviriyi seslendir">🔊</button>
+      </div>
+      <div id="translatedText" class="text translated">...</div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="action-btn" id="copyOriginal">Algılananı Kopyala</button>
+    <button class="action-btn" id="copyTranslated">Çeviriyi Kopyala</button>
+    <button class="action-btn" id="clearBtn">Temizle</button>
+  </div>
+
+  <div class="note">
+    Not: Mikrofon için sayfanın <b>HTTPS</b> üzerinden veya yerel dosya olarak açılması gerekir. En iyi sonuç için Chrome kullanın.
+    Dil, konuştuğunuz metinden otomatik algılanır; mikrofon dili de buna göre kendini uyarlar.
+  </div>
+</div>
+
+<script>
+const micBtn = document.getElementById('micBtn');
+const statusText = document.getElementById('status');
+const originalText = document.getElementById('originalText');
+const translatedText = document.getElementById('translatedText');
+const originalLangTag = document.getElementById('originalLangTag');
+const translatedLangTag = document.getElementById('translatedLangTag');
+const speakOriginalBtn = document.getElementById('speakOriginal');
+const speakTranslatedBtn = document.getElementById('speakTranslated');
+const directionText = document.getElementById('directionText');
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+let recognition = null;
+let isListening = false;
+
+// Son çevirinin dilleri (seslendirme için)
+let lastSourceLang = 'tr';
+let lastTargetLang = 'en';
+
+// Mikrofonun dinleme dili: algılanan dile göre kendini uyarlar
+let micLang = 'tr-TR';
+
+const LANG_NAMES = { tr: 'Türkçe', en: 'İngilizce' };
+const BCP47 = { tr: 'tr-TR', en: 'en-US' };
+
+function setStatus(message, type=''){
+  statusText.className = 'status ' + type;
+  statusText.innerText = message;
+}
+
+/* ---------- OTOMATİK DİL ALGILAMA ---------- */
+
+const TR_WORDS = new Set(['bir','ve','bu','şu','ne','için','ben','sen','biz','siz','evet','hayır','merhaba','selam','nasıl','nasılsın','çok','ama','fakat','değil','var','yok','mı','mi','mu','mü','şey','tamam','ile','gibi','daha','sonra','önce','bugün','yarın','dün','iyi','kötü','güzel','teşekkür','teşekkürler','lütfen','istiyorum','olacak','oldu','geldi','gitti','yapmak','etmek','olmak','burada','orada','nerede','kim','neden','niye','çünkü','hem','ya','veya','her','hiç','biraz','kadar','en','de','da','ki']);
+
+const EN_WORDS = new Set(['the','is','are','was','were','and','you','i','a','an','to','of','in','on','it','that','this','what','how','hello','hi','yes','no','not','my','your','for','with','have','has','had','do','does','did','can','could','will','would','should','want','need','like','good','bad','very','but','or','so','if','when','where','who','why','because','please','thank','thanks','today','tomorrow','yesterday','here','there','be','been','am','me','we','they','he','she','at','by','from','about','all','some','more','one','two','go','come','make','get','know','think','see','say','time','day']);
+
+function detectLanguage(text){
+  // Türkçeye özgü harfler kesin işarettir
+  if(/[ğüşıöçĞÜŞİÖÇ]/.test(text)) return 'tr';
+
+  const words = text.toLowerCase()
+    .replace(/[^a-zçğıöşü\s]/gi, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+
+  let trScore = 0, enScore = 0;
+  for(const w of words){
+    if(TR_WORDS.has(w)) trScore++;
+    if(EN_WORDS.has(w)) enScore++;
+  }
+
+  // Türkçe soneklerine göre ek puan (-yor, -lar, -ler, -dım, -miş vb.)
+  for(const w of words){
+    if(/(yor|yorum|yorsun|lar|ler|dım|dim|dum|düm|tım|tim|mış|miş|muş|müş|acak|ecek|ıyor|iyor)$/.test(w) && w.length > 4){
+      trScore += 0.5;
+    }
+  }
+
+  if(enScore > trScore) return 'en';
+  if(trScore > enScore) return 'tr';
+
+  // Eşitlikte: q, w, x harfleri Türkçe alfabede yoktur → İngilizce
+  if(/[qwx]/i.test(text)) return 'en';
+
+  // Son çare: mikrofonun dinlediği dili varsay
+  return micLang === 'tr-TR' ? 'tr' : 'en';
+}
+
+/* ---------- SESLENDİRME (TEXT-TO-SPEECH) ---------- */
+
+let voices = [];
+
+function loadVoices(){
+  voices = speechSynthesis.getVoices();
+}
+
+if('speechSynthesis' in window){
+  loadVoices();
+  speechSynthesis.onvoiceschanged = loadVoices;
+}else{
+  speakOriginalBtn.disabled = true;
+  speakTranslatedBtn.disabled = true;
+}
+
+function pickVoice(lang){
+  const prefix = lang === 'tr' ? 'tr' : 'en';
+  return voices.find(v => v.lang.toLowerCase().startsWith(prefix)) || null;
+}
+
+function speak(text, lang, btn){
+  if(!('speechSynthesis' in window)){
+    setStatus('Tarayıcınız seslendirmeyi desteklemiyor.', 'error');
+    return;
+  }
+
+  const clean = text.trim();
+  if(!clean || clean === '...' || clean === 'Çevriliyor...'){
+    setStatus('Seslendirilecek metin yok.', 'error');
+    return;
+  }
+
+  // Devam eden konuşma varsa durdur
+  speechSynthesis.cancel();
+  document.querySelectorAll('.speak-btn').forEach(b => b.classList.remove('speaking'));
+
+  const utterance = new SpeechSynthesisUtterance(clean);
+  utterance.lang = BCP47[lang];
+  const voice = pickVoice(lang);
+  if(voice) utterance.voice = voice;
+  utterance.rate = 0.95;
+
+  utterance.onstart = () => btn.classList.add('speaking');
+  utterance.onend = () => btn.classList.remove('speaking');
+  utterance.onerror = () => {
+    btn.classList.remove('speaking');
+    setStatus('Seslendirme sırasında hata oluştu.', 'error');
+  };
+
+  speechSynthesis.speak(utterance);
+}
+
+speakOriginalBtn.addEventListener('click', () => {
+  speak(originalText.innerText, lastSourceLang, speakOriginalBtn);
+});
+
+speakTranslatedBtn.addEventListener('click', () => {
+  speak(translatedText.innerText, lastTargetLang, speakTranslatedBtn);
+});
+
+/* ---------- SES TANIMA ---------- */
+
+if(!SpeechRecognition){
+  setStatus('Tarayıcınız ses tanımayı desteklemiyor. Lütfen Chrome deneyin.', 'error');
+  micBtn.disabled = true;
+}else{
+  recognition = new SpeechRecognition();
+  recognition.lang = micLang;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.continuous = false;
+
+  micBtn.addEventListener('click', () => {
+    if(!isListening){
+      try{
+        recognition.lang = micLang;
+        recognition.start();
+      }catch(e){
+        setStatus('Mikrofon başlatılamadı. Birkaç saniye sonra tekrar deneyin.', 'error');
+      }
+    }else{
+      recognition.stop();
+    }
+  });
+
+  recognition.onstart = () => {
+    isListening = true;
+    micBtn.classList.add('listening');
+    micBtn.innerText = '■';
+    setStatus('Dinleniyor... Konuşmayı bitirince otomatik çevrilecek.');
+  };
+
+  recognition.onend = () => {
+    isListening = false;
+    micBtn.classList.remove('listening');
+    micBtn.innerText = '🎤';
+    if(statusText.innerText === 'Dinleniyor... Konuşmayı bitirince otomatik çevrilecek.'){
+      setStatus('Konuşmak için mikrofona basın.');
+    }
+  };
+
+  recognition.onerror = (event) => {
+    isListening = false;
+    micBtn.classList.remove('listening');
+    micBtn.innerText = '🎤';
+
+    const messages = {
+      'not-allowed': 'Mikrofon izni verilmedi. Tarayıcı izinlerinden mikrofona izin verin.',
+      'no-speech': 'Ses algılanmadı. Mikrofona biraz daha yakın konuşun.',
+      'audio-capture': 'Mikrofon bulunamadı veya kullanılamıyor.',
+      'network': 'Ses tanıma için ağ hatası oluştu.'
+    };
+
+    setStatus(messages[event.error] || 'Ses tanıma hatası oluştu: ' + event.error, 'error');
+  };
+
+  recognition.onresult = async (event) => {
+    const speechToText = event.results[0][0].transcript.trim();
+
+    if(!speechToText){
+      setStatus('Metin algılanamadı. Tekrar deneyin.', 'error');
+      return;
+    }
+
+    // Dili otomatik algıla, hedefi karşı dil olarak belirle
+    const source = detectLanguage(speechToText);
+    const target = source === 'tr' ? 'en' : 'tr';
+
+    lastSourceLang = source;
+    lastTargetLang = target;
+
+    // Mikrofon dilini algılanan dile uyarla (bir sonraki dinleme daha isabetli olur)
+    micLang = BCP47[source];
+
+    originalLangTag.hidden = false;
+    originalLangTag.innerText = LANG_NAMES[source];
+    translatedLangTag.hidden = false;
+    translatedLangTag.innerText = LANG_NAMES[target];
+    directionText.innerText = `${LANG_NAMES[source]} → ${LANG_NAMES[target]}`;
+
+    originalText.innerText = speechToText;
+    translatedText.innerText = 'Çevriliyor...';
+    setStatus(`${LANG_NAMES[source]} algılandı, çevriliyor...`);
+
+    try{
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(speechToText)}&langpair=${source}|${target}`;
+      const response = await fetch(url);
+
+      if(!response.ok){
+        throw new Error('Çeviri servisi yanıt vermedi.');
+      }
+
+      const data = await response.json();
+      const translation = data?.responseData?.translatedText;
+
+      if(!translation){
+        throw new Error('Çeviri sonucu alınamadı.');
+      }
+
+      translatedText.innerText = cleanText(translation);
+      setStatus(`Tamamlandı: ${LANG_NAMES[source]} → ${LANG_NAMES[target]}`, 'success');
+    }catch(error){
+      translatedText.innerText = 'Çeviri yapılamadı. İnternet bağlantısını veya çeviri servisini kontrol edin.';
+      setStatus('Çeviri hatası oluştu.', 'error');
+    }
+  };
+}
+
+function cleanText(text){
+  const div = document.createElement('div');
+  div.innerHTML = text;
+  return div.textContent || div.innerText || '';
+}
+
+async function copyText(el){
+  const text = el.innerText.trim();
+  if(!text || text === '...'){
+    setStatus('Kopyalanacak metin yok.', 'error');
+    return;
+  }
+
+  try{
+    await navigator.clipboard.writeText(text);
+    setStatus('Kopyalandı.', 'success');
+  }catch(e){
+    setStatus('Kopyalama başarısız oldu.', 'error');
+  }
+}
+
+document.getElementById('copyOriginal').addEventListener('click', () => copyText(originalText));
+document.getElementById('copyTranslated').addEventListener('click', () => copyText(translatedText));
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  speechSynthesis.cancel();
+  originalText.innerText = '...';
+  translatedText.innerText = '...';
+  originalLangTag.hidden = true;
+  translatedLangTag.hidden = true;
+  directionText.innerText = 'Türkçe ⇄ İngilizce';
+  setStatus('Temizlendi. Konuşmak için mikrofona basın.');
+});
+</script>
+
+</body>
+</html>
