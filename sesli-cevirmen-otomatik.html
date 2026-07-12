@@ -492,20 +492,7 @@ if(!SpeechRecognition){
     setStatus(`${LANG_NAMES[source]} algılandı, çevriliyor...`);
 
     try{
-      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(speechToText)}&langpair=${source}|${target}`;
-      const response = await fetch(url);
-
-      if(!response.ok){
-        throw new Error('Çeviri servisi yanıt vermedi.');
-      }
-
-      const data = await response.json();
-      const translation = data?.responseData?.translatedText;
-
-      if(!translation){
-        throw new Error('Çeviri sonucu alınamadı.');
-      }
-
+      const translation = await translateText(speechToText, source, target);
       translatedText.innerText = cleanText(translation);
       setStatus(`Tamamlandı: ${LANG_NAMES[source]} → ${LANG_NAMES[target]}`, 'success');
     }catch(error){
@@ -513,6 +500,50 @@ if(!SpeechRecognition){
       setStatus('Çeviri hatası oluştu.', 'error');
     }
   };
+}
+
+/* ---------- ÇEVİRİ ---------- */
+
+// Birincil servis: Google Translate (kaliteli, makine çevirisi)
+async function translateWithGoogle(text, source, target){
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${source}&tl=${target}&dt=t&q=${encodeURIComponent(text)}`;
+  const response = await fetch(url);
+
+  if(!response.ok) throw new Error('Google çeviri yanıt vermedi.');
+
+  const data = await response.json();
+  // Yanıt biçimi: [[["çeviri parçası","kaynak parçası",...], ...], ...]
+  const translation = (data?.[0] || []).map(part => part?.[0] || '').join('').trim();
+
+  if(!translation) throw new Error('Google çeviri sonucu boş.');
+  return translation;
+}
+
+// Yedek servis: MyMemory (çeviri hafızası; kısa cümlelerde güvenilmez olabilir)
+async function translateWithMyMemory(text, source, target){
+  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${source}|${target}`;
+  const response = await fetch(url);
+
+  if(!response.ok) throw new Error('MyMemory yanıt vermedi.');
+
+  const data = await response.json();
+  const translation = data?.responseData?.translatedText;
+  const match = data?.responseData?.match ?? 0;
+
+  // Düşük eşleşme puanlı hafıza kayıtları saçma sonuç verebilir; onları reddet
+  if(!translation || match < 0.75){
+    throw new Error('MyMemory güvenilir sonuç döndürmedi.');
+  }
+  return translation;
+}
+
+async function translateText(text, source, target){
+  try{
+    return await translateWithGoogle(text, source, target);
+  }catch(e){
+    // Google erişilemezse yedeğe düş
+    return await translateWithMyMemory(text, source, target);
+  }
 }
 
 function cleanText(text){
