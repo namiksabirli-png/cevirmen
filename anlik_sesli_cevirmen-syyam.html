@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Anlık Sesli Çevirmen</title>
+<style>
+:root{
+  --grad1:#dff4ff; --grad2:#f5f8fb; --grad3:#dce8f2;
+  --card-bg:#ffffff; --card-border:rgba(60,100,140,.12); --card-shadow:rgba(30,55,90,.16);
+  --text-main:#253040; --text-strong:#1f2d3d; --text-dim:#667085; --text-faint:#8a94a6;
+  --input-bg:#f8fafc; --input-border:#d6dee8;
+  --accent:#1677ff; --accent-2:#005bd3; --accent-soft:#eef5ff; --accent-soft-hover:#dcecff;
+  --trans-bg:#f0fbf4; --trans-text:#0f5fb8;
+  --error:#b42318; --success:#18753c;
+  --track-off:#d8e0ea;
+  --live:#ff4d4f;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --grad1:#0f2a3d; --grad2:#0b1220; --grad3:#111a2b;
+    --card-bg:#141c2b; --card-border:rgba(120,160,210,.18); --card-shadow:rgba(0,0,0,.5);
+    --text-main:#dfe6f0; --text-strong:#f2f5fa; --text-dim:#9aa7bd; --text-faint:#79869c;
+    --input-bg:#1b2536; --input-border:#2c3a52;
+    --accent:#4a9dff; --accent-2:#7db8ff; --accent-soft:#1c2e46; --accent-soft-hover:#233a58;
+    --trans-bg:#12261d; --trans-text:#6cc3ff;
+    --error:#ff6b6b; --success:#4fd18b;
+    --track-off:#33405a;
+  }
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;font-family:inherit}
+
+body{
+  min-height:100vh;
+  min-height:100dvh;
+  font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+  background:radial-gradient(circle at top,var(--grad1) 0%,var(--grad2) 42%,var(--grad3) 100%);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:18px;
+  padding:max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  color:var(--text-main);
+  -webkit-tap-highlight-color:transparent;
+}
+body.f2f-lock{overflow:hidden}
+
+.container{
+  width:100%;
+  max-width:560px;
+  background:var(--card-bg);
+  border-radius:24px;
+  padding:28px;
+  box-shadow:0 18px 60px var(--card-shadow);
+  text-align:center;
+  border:1px solid var(--card-border);
+}
+
+h1{font-size:1.55rem;color:var(--text-strong);margin-bottom:8px}
+
+.subtitle{font-size:.9rem;color:var(--text-dim);line-height:1.45;margin-bottom:20px}
+
+.lang-row{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  gap:10px;
+  align-items:center;
+  margin-bottom:16px;
+}
+
+select{
+  width:100%;
+  padding:12px 14px;
+  border-radius:14px;
+  border:1px solid var(--input-border);
+  background:var(--input-bg);
+  color:var(--text-main);
+  font-weight:700;
+  font-size:1rem;
+  outline:none;
+}
+
+.swap-btn{
+  border:none;
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  background:var(--accent-soft);
+  color:var(--accent);
+  cursor:pointer;
+  font-size:1.25rem;
+  font-weight:900;
+  transition:.15s;
+  flex-shrink:0;
+}
+.swap-btn:hover{background:var(--accent-soft-hover);transform:rotate(180deg)}
+
+.options-row{
+  display:flex;
+  gap:18px;
+  justify-content:center;
+  flex-wrap:wrap;
+  margin-bottom:16px;
+}
+
+.switch{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+  cursor:pointer;
+  font-size:.82rem;
+  font-weight:700;
+  color:var(--text-main);
+}
+.switch input{display:none}
+.switch .track{
+  width:40px;height:23px;border-radius:20px;background:var(--track-off);
+  position:relative;transition:.2s;flex-shrink:0;
+}
+.switch .track::after{
+  content:'';position:absolute;top:2px;left:2px;width:19px;height:19px;
+  border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:.2s;
+}
+.switch input:checked + .track{background:var(--accent)}
+.switch input:checked + .track::after{transform:translateX(17px)}
+
+.f2f-enter-btn{
+  width:100%;border:1.5px dashed var(--input-border);background:transparent;color:var(--text-dim);
+  border-radius:14px;padding:11px 14px;font-weight:800;cursor:pointer;margin-bottom:18px;
+  transition:.15s;
+}
+.f2f-enter-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+.mic-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:6px}
+
+.mic-btn{
+  width:92px;
+  height:92px;
+  border-radius:50%;
+  border:none;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  color:white;
+  font-size:2.4rem;
+  cursor:pointer;
+  transition:.2s;
+  box-shadow:0 10px 26px rgba(22,119,255,.32);
+  outline:none;
+}
+.mic-btn:hover{transform:scale(1.04)}
+.mic-btn:active{transform:scale(.98)}
+.mic-btn.listening{
+  background:linear-gradient(135deg,#ff4d4f,#b42318);
+  animation:pulse 1.3s infinite;
+  box-shadow:0 10px 28px rgba(220,53,69,.32);
+}
+.mic-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;animation:none}
+
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(255,77,79,.45)}
+  70%{box-shadow:0 0 0 18px rgba(255,77,79,0)}
+  100%{box-shadow:0 0 0 0 rgba(255,77,79,0)}
+}
+
+.wave{display:flex;gap:4px;align-items:flex-end;height:20px;margin-top:12px;justify-content:center;opacity:0;transition:.2s}
+.wave.active{opacity:1}
+.wave span{width:4px;background:var(--accent);border-radius:2px;height:6px;animation:wave 1s ease-in-out infinite}
+.wave span:nth-child(1){animation-delay:0s}
+.wave span:nth-child(2){animation-delay:.12s}
+.wave span:nth-child(3){animation-delay:.24s}
+.wave span:nth-child(4){animation-delay:.36s}
+.wave span:nth-child(5){animation-delay:.48s}
+@keyframes wave{0%,100%{height:6px}50%{height:20px}}
+
+.status{min-height:22px;margin:12px 0 4px;font-size:.9rem;color:var(--text-dim);font-weight:700}
+
+.interim{min-height:20px;font-size:.85rem;font-style:italic;color:var(--text-faint);opacity:0;transition:.2s;max-width:95%;margin:0 auto 6px;text-align:center}
+.interim.show{opacity:1}
+
+.dictate-fallback{display:flex;gap:8px;margin:4px 0 10px}
+.dictate-fallback input{
+  flex:1;padding:12px 14px;border-radius:14px;border:1px solid var(--input-border);
+  background:var(--input-bg);color:var(--text-main);font-size:1rem;outline:none;
+}
+.dictate-fallback input:focus{border-color:var(--accent)}
+.dictate-send{
+  width:46px;height:46px;border-radius:50%;border:none;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-size:1.2rem;cursor:pointer;
+}
+
+.transcript-title{
+  font-size:.78rem;font-weight:900;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--text-dim);margin:18px 0 8px;text-align:left;
+}
+.transcript{
+  max-height:320px;overflow-y:auto;text-align:left;padding-right:4px;margin-bottom:8px;
+  scroll-behavior:smooth;
+}
+.transcript::-webkit-scrollbar{width:6px}
+.transcript::-webkit-scrollbar-thumb{background:var(--input-border);border-radius:6px}
+
+.empty{color:var(--text-faint);text-align:center;padding:26px 10px;font-size:.85rem;line-height:1.5}
+
+.msg{margin-bottom:14px;animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.msg .meta{font-size:.72rem;color:var(--text-faint);margin-bottom:5px;display:flex;gap:6px;align-items:center;font-weight:700}
+.msg .orig{
+  background:var(--accent-soft);border-radius:14px 14px 14px 4px;
+  padding:10px 14px;font-size:.95rem;color:var(--text-strong);margin-bottom:6px;
+  word-break:break-word;
+}
+.msg .trans{
+  background:var(--trans-bg);border-left:3px solid var(--accent);border-radius:10px;
+  padding:10px 14px;font-size:.95rem;color:var(--trans-text);font-weight:600;
+  word-break:break-word;
+}
+.msg .trans.err{color:var(--error);font-weight:700}
+.msg .trans.pending{opacity:.6}
+.msg .trans.low-confidence{font-style:italic}
+.f2f-text.pending{opacity:.6}
+.f2f-text.low-confidence{font-style:italic}
+
+.actions{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap}
+.action-btn{
+  flex:1;min-width:130px;border:none;border-radius:14px;padding:12px 14px;
+  cursor:pointer;background:var(--accent-soft);color:var(--accent-2);
+  font-weight:900;transition:.15s;
+}
+.action-btn:hover{background:var(--accent-soft-hover)}
+.action-btn:disabled{opacity:.5;cursor:not-allowed}
+
+.note{margin-top:16px;font-size:.78rem;color:var(--text-faint);line-height:1.45}
+
+.error{color:var(--error) !important}
+.success{color:var(--success) !important}
+
+/* ---------------- FACE TO FACE MODE ---------------- */
+.f2f-overlay{
+  position:fixed;inset:0;z-index:999;display:none;flex-direction:column;background:var(--card-bg);
+}
+.f2f-overlay.active{display:flex}
+
+.f2f-panel{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:space-between;gap:10px;padding:22px 20px;min-height:0;position:relative;
+}
+.f2f-panel.top{transform:rotate(180deg)}
+.f2f-lang{font-size:.82rem;font-weight:800;color:var(--text-dim);letter-spacing:.5px;flex-shrink:0}
+.f2f-text{
+  flex:1;display:flex;align-items:center;justify-content:center;width:100%;
+  font-size:clamp(1.3rem,5.5vw,2.3rem);font-weight:700;line-height:1.3;text-align:center;
+  color:var(--text-strong);overflow-y:auto;max-width:100%;word-break:break-word;
+}
+.f2f-text.err{color:var(--error)}
+.f2f-status{font-size:.78rem;color:var(--text-faint);min-height:16px;flex-shrink:0}
+.f2f-mic{
+  width:64px;height:64px;border-radius:50%;border:none;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;
+  font-size:1.7rem;box-shadow:0 6px 18px rgba(22,119,255,.32);cursor:pointer;
+}
+.f2f-mic.listening{background:linear-gradient(135deg,#ff4d4f,#b42318);animation:pulse 1.3s infinite}
+.f2f-mic:disabled{opacity:.4;cursor:not-allowed}
+
+.f2f-mid{
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:8px calc(10px + env(safe-area-inset-right)) 8px calc(10px + env(safe-area-inset-left));
+  border-top:1px solid var(--card-border);border-bottom:1px solid var(--card-border);
+  position:relative;z-index:2;background:var(--card-bg);flex-wrap:wrap;
+}
+.f2f-round{
+  width:38px;height:38px;border-radius:50%;border:none;flex-shrink:0;
+  background:var(--accent-soft);color:var(--accent-2);font-size:1.05rem;cursor:pointer;
+}
+.f2f-round:hover{background:var(--accent-soft-hover)}
+
+.f2f-dictate-bar{display:none;flex:1;min-width:220px;flex-direction:column;gap:6px;padding:6px 0}
+.f2f-dictate-bar.active{display:flex}
+.f2f-dir-row{display:flex;gap:6px;justify-content:center}
+.f2f-dir{
+  border:1px solid var(--input-border);background:var(--input-bg);color:var(--text-dim);
+  border-radius:10px;padding:5px 9px;font-size:.72rem;font-weight:700;cursor:pointer;
+}
+.f2f-dir.active{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.f2f-dictate-input-row{display:flex;gap:8px}
+.f2f-dictate-input-row input{
+  flex:1;padding:10px 12px;border-radius:12px;border:1px solid var(--input-border);
+  background:var(--input-bg);color:var(--text-main);font-size:1rem;outline:none;
+}
+.f2f-dictate-input-row input:focus{border-color:var(--accent)}
+
+@media(max-width:520px){
+  .container{padding:22px}
+  .lang-row{grid-template-columns:1fr}
+  .swap-btn{margin:auto}
+  .options-row{gap:12px 22px}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🎙️ Anlık Sesli Çevirmen</h1>
+  <div class="subtitle">Mikrofona bas, konuşmaya başlayın. Sürekli mod açıkken uygulama duraklamalarda durmaz, konuşma bitene kadar dinlemeye devam eder.</div>
+
+  <div class="lang-row">
+    <select id="sourceLang"></select>
+    <button class="swap-btn" id="swapBtn" title="Dilleri değiştir">⇄</button>
+    <select id="targetLang"></select>
+  </div>
+
+  <div class="options-row">
+    <label class="switch">
+      <input type="checkbox" id="continuousToggle" checked>
+      <span class="track"></span>
+      <span>Sürekli Dinleme</span>
+    </label>
+    <label class="switch" id="autoSpeakWrap">
+      <input type="checkbox" id="autoSpeakToggle" checked>
+      <span class="track"></span>
+      <span>Çeviriyi Seslendir</span>
+    </label>
+  </div>
+
+  <button class="f2f-enter-btn" id="f2fEnterBtn">👥 Karşılıklı Konuşma Modu</button>
+
+  <div class="mic-wrap">
+    <button id="micBtn" class="mic-btn" aria-label="Mikrofonu başlat">🎤</button>
+    <div class="wave" id="wave"><span></span><span></span><span></span><span></span><span></span></div>
+    <div id="status" class="status">Konuşmak için mikrofona basın.</div>
+    <div id="interimCaption" class="interim"></div>
+    <div id="dictateFallback" class="dictate-fallback" style="display:none">
+      <input type="text" id="dictateInput" placeholder="🎤 Klavye mikrofonuna dokunup dikte edin">
+      <button id="dictateSend" class="dictate-send" aria-label="Gönder">➤</button>
+    </div>
+  </div>
+
+  <div class="transcript-title">Konuşma Geçmişi</div>
+  <div id="transcript" class="transcript">
+    <div class="empty" id="emptyState">Henüz bir konuşma yok. Mikrofona basıp konuşmaya başlayın.</div>
+  </div>
+
+  <div class="actions">
+    <button class="action-btn" id="exportBtn">⬇ Dışa Aktar</button>
+    <button class="action-btn" id="copyAllBtn">📋 Tümünü Kopyala</button>
+    <button class="action-btn" id="clearBtn">🗑 Temizle</button>
+  </div>
+
+  <div class="note">
+    Not: Mikrofon için sayfanın <b>HTTPS</b> üzerinden veya yerel dosya olarak açılması gerekir. iPhone'da (Safari, Chrome, hepsi) canlı ses tanıma API'si desteklenmez — bu durumda uygulama otomatik olarak klavyenizin <b>dikte</b> (mikrofon) düğmesini kullanan bir giriş kutusuna geçer. En iyi tam deneyim için bilgisayarda Chrome kullanın. Kısayol: <b>Boşluk</b> tuşuyla mikrofonu açıp kapatabilirsiniz.
+  </div>
+</div>
+
+<!-- ---------------- FACE TO FACE OVERLAY ---------------- -->
+<div id="f2fOverlay" class="f2f-overlay">
+  <div class="f2f-panel top" id="f2fTopPanel">
+    <button class="f2f-mic" id="f2fTopMic" aria-label="Üst mikrofon">🎤</button>
+    <div class="f2f-status" id="f2fTopStatus"></div>
+    <div class="f2f-text" id="f2fTopText">…</div>
+    <div class="f2f-lang" id="f2fTopLang"></div>
+  </div>
+
+  <div class="f2f-mid">
+    <button class="f2f-round" id="f2fSwap" title="Dilleri değiştir">⇄</button>
+    <div id="f2fDictateBar" class="f2f-dictate-bar">
+      <div class="f2f-dir-row">
+        <button id="f2fDirBottom" class="f2f-dir active">⬆ Alttaki konuşuyor</button>
+        <button id="f2fDirTop" class="f2f-dir">⬇ Üstteki konuşuyor</button>
+      </div>
+      <div class="f2f-dictate-input-row">
+        <input type="text" id="f2fDictateInput" placeholder="🎤 Dikte edin veya yazın">
+        <button id="f2fDictateSend" class="f2f-round" aria-label="Gönder">➤</button>
+      </div>
+    </div>
+    <button class="f2f-round" id="f2fClose" title="Kapat">✕</button>
+  </div>
+
+  <div class="f2f-panel bottom" id="f2fBottomPanel">
+    <div class="f2f-lang" id="f2fBottomLang"></div>
+    <div class="f2f-text" id="f2fBottomText">…</div>
+    <div class="f2f-status" id="f2fBottomStatus"></div>
+    <button class="f2f-mic" id="f2fBottomMic" aria-label="Alt mikrofon">🎤</button>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const LANGS = {
+  tr:{label:'Türkçe',     speech:'tr-TR', flag:'🇹🇷', t:'tr'},
+  en:{label:'İngilizce',  speech:'en-US', flag:'🇬🇧', t:'en'},
+  de:{label:'Almanca',    speech:'de-DE', flag:'🇩🇪', t:'de'},
+  fr:{label:'Fransızca',  speech:'fr-FR', flag:'🇫🇷', t:'fr'},
+  es:{label:'İspanyolca', speech:'es-ES', flag:'🇪🇸', t:'es'},
+  ru:{label:'Rusça',      speech:'ru-RU', flag:'🇷🇺', t:'ru'},
+  ar:{label:'Arapça',     speech:'ar-SA', flag:'🇸🇦', t:'ar'},
+  it:{label:'İtalyanca',  speech:'it-IT', flag:'🇮🇹', t:'it'},
+  pt:{label:'Portekizce', speech:'pt-PT', flag:'🇵🇹', t:'pt'},
+  nl:{label:'Hollandaca', speech:'nl-NL', flag:'🇳🇱', t:'nl'},
+  ja:{label:'Japonca',    speech:'ja-JP', flag:'🇯🇵', t:'ja'},
+  zh:{label:'Çince',      speech:'zh-CN', flag:'🇨🇳', t:'zh-CN'},
+  ko:{label:'Korece',     speech:'ko-KR', flag:'🇰🇷', t:'ko'}
+};
+const LANG_ORDER = ['tr','en','de','fr','es','ru','ar','it','pt','nl','ja','zh','ko'];
+
+const micBtn = $('micBtn');
+const statusText = $('status');
+const sourceLang = $('sourceLang');
+const targetLang = $('targetLang');
+const swapBtn = $('swapBtn');
+const waveEl = $('wave');
+const interimCaption = $('interimCaption');
+const transcriptEl = $('transcript');
+const emptyState = $('emptyState');
+const continuousToggle = $('continuousToggle');
+const autoSpeakToggle = $('autoSpeakToggle');
+
+function populateSelects(){
+  sourceLang.innerHTML = LANG_ORDER.map(code =>
+    `<option value="${LANGS[code].speech}" data-api="${code}">${LANGS[code].flag} ${LANGS[code].label}</option>`
+  ).join('');
+  targetLang.innerHTML = LANG_ORDER.map(code =>
+    `<option value="${code}">${LANGS[code].flag} ${LANGS[code].label}</option>`
+  ).join('');
+  sourceLang.value = 'tr-TR';
+  targetLang.value = 'en';
+}
+populateSelects();
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+let recognition = null;
+let isListening = false;
+let manualStop = false;
+let fatalError = false;
+let restartTimer = null;
+let translateQueue = Promise.resolve();
+let restartAttempts = 0;
+let healthyTimer = null;
+let micEngaged = false; // true from the moment the user presses the mic until they explicitly stop it — used to recover after the tab is backgrounded/phone is locked
+
+// How the app decides *when* to actually translate while someone keeps talking:
+// the browser flags a "final" result far too eagerly (often every couple of
+// words), which produces choppy, low-quality translations. Instead we buffer
+// final chunks and only translate once ~800ms of silence follows, merging
+// rapid-fire finals into one coherent sentence. A hard character cap prevents
+// waiting forever if someone talks for a long stretch without any real pause.
+const SEGMENT_COMMIT_DELAY = 800;
+const SEGMENT_MAX_CHARS = 220;
+let segmentBuffer = '';
+let segmentTimer = null;
+let segmentSourceApi = null;
+
+// Small cache so repeated/identical phrases (common in a live conversation —
+// greetings, confirmations) don't re-hit the translation API every time.
+const translateCache = new Map();
+
+function getSourceApiLang(){
+  return sourceLang.options[sourceLang.selectedIndex].dataset.api;
+}
+
+function setStatus(message, type=''){
+  statusText.className = 'status ' + type;
+  statusText.innerText = message;
+}
+
+function normalizeLangs(){
+  const sourceApi = getSourceApiLang();
+  if(sourceApi === targetLang.value){
+    const alt = [...targetLang.options].find(o => o.value !== sourceApi);
+    if(alt) targetLang.value = alt.value;
+  }
+}
+
+sourceLang.addEventListener('change', () => {
+  normalizeLangs();
+  if(recognition) recognition.lang = sourceLang.value;
+});
+targetLang.addEventListener('change', normalizeLangs);
+
+swapBtn.addEventListener('click', () => {
+  const newSourceApi = targetLang.value;
+  const newTargetApi = getSourceApiLang();
+  const opt = [...sourceLang.options].find(o => o.dataset.api === newSourceApi);
+  if(opt) sourceLang.value = opt.value;
+  targetLang.value = newTargetApi;
+  if(recognition) recognition.lang = sourceLang.value;
+});
+
+continuousToggle.addEventListener('change', () => {
+  if(recognition) recognition.continuous = continuousToggle.checked;
+  flushSegmentBuffer();
+});
+
+if(!('speechSynthesis' in window)){
+  $('autoSpeakWrap').style.display = 'none';
+}
+
+/* ---------------- SPEECH RECOGNITION (MAIN MODE) ---------------- */
+
+if(!SpeechRecognition){
+  // No live JS speech recognition available (this is the normal case on
+  // iPhone — WebKit doesn't implement it in any iOS browser). Fall back to
+  // the device's native keyboard dictation through a plain text field.
+  micBtn.style.display = 'none';
+  waveEl.style.display = 'none';
+  $('dictateFallback').style.display = 'flex';
+  setStatus('Bu tarayıcı (iPhone dahil) canlı ses tanımayı desteklemiyor. Kutuya dokunup klavyenizdeki mikrofon simgesiyle dikte edin, sonra gönderin.', '');
+
+  function submitDictate(){
+    const input = $('dictateInput');
+    const text = input.value.trim();
+    if(!text) return;
+    handleFinalSegment(text);
+    input.value = '';
+    input.focus();
+  }
+  $('dictateSend').addEventListener('click', submitDictate);
+  $('dictateInput').addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){ e.preventDefault(); submitDictate(); }
+  });
+}else{
+  recognition = new SpeechRecognition();
+  recognition.lang = sourceLang.value;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+  recognition.continuous = continuousToggle.checked;
+
+  micBtn.addEventListener('click', () => {
+    if(!isListening){
+      manualStop = false;
+      fatalError = false;
+      micEngaged = true;
+      restartAttempts = 0;
+      try{
+        recognition.lang = sourceLang.value;
+        recognition.continuous = continuousToggle.checked;
+        recognition.start();
+      }catch(e){
+        setStatus('Mikrofon başlatılamadı. Birkaç saniye sonra tekrar deneyin.', 'error');
+      }
+    }else{
+      manualStop = true;
+      micEngaged = false;
+      flushSegmentBuffer();
+      recognition.stop();
+    }
+  });
+
+  recognition.onstart = () => {
+    isListening = true;
+    micBtn.classList.add('listening');
+    micBtn.innerText = '■';
+    waveEl.classList.add('active');
+    setStatus(continuousToggle.checked ? 'Dinleniyor... Sürekli mod aktif.' : 'Dinleniyor...');
+    // Only reset the backoff counter once a session has stayed up a little
+    // while — that's the signal it actually recovered, not just that it
+    // technically restarted.
+    clearTimeout(healthyTimer);
+    healthyTimer = setTimeout(() => { restartAttempts = 0; }, 4000);
+  };
+
+  recognition.onend = () => {
+    micBtn.classList.remove('listening');
+    micBtn.innerText = '🎤';
+    waveEl.classList.remove('active');
+    interimCaption.classList.remove('show');
+
+    const shouldRestart = continuousToggle.checked && !manualStop && !fatalError;
+    manualStop = false;
+
+    if(!shouldRestart){
+      isListening = false;
+      flushSegmentBuffer();
+      setStatus('Konuşmak için mikrofona basın.');
+      return;
+    }
+
+    // Continuous conversation mode: the recognition engine can end unexpectedly
+    // (silence timeout, brief network hiccup, etc). Restart transparently so the
+    // person talking is never cut off and doesn't have to notice & re-click.
+    // If restarts keep failing in a tight loop (e.g. a real connectivity
+    // problem), back off instead of hammering the engine / draining battery.
+    restartAttempts++;
+    const delay = restartAttempts > 4 ? Math.min(1000 * (restartAttempts - 3), 5000) : 250;
+    setStatus(restartAttempts > 4 ? 'Bağlantı kararsız, yeniden deneniyor...' : 'Dinleniyor... Sürekli mod aktif.', restartAttempts > 4 ? 'error' : '');
+    clearTimeout(restartTimer);
+    restartTimer = setTimeout(() => {
+      try{
+        recognition.lang = sourceLang.value;
+        recognition.continuous = true;
+        recognition.start();
+      }catch(e){
+        isListening = false;
+        setStatus('Mikrofon yeniden başlatılamadı. Tekrar basın.', 'error');
+      }
+    }, delay);
+  };
+
+  recognition.onerror = (event) => {
+    if(event.error === 'no-speech' || event.error === 'aborted'){
+      // benign during a live conversation (natural pause) — onend will restart it
+      return;
+    }
+    if(event.error === 'not-allowed' || event.error === 'service-not-allowed'){
+      fatalError = true;
+      micEngaged = false;
+      setStatus('Mikrofon izni verilmedi. Tarayıcı izinlerinden mikrofona izin verin.', 'error');
+      return;
+    }
+    if(event.error === 'audio-capture'){
+      fatalError = true;
+      micEngaged = false;
+      setStatus('Mikrofon bulunamadı veya kullanılamıyor.', 'error');
+      return;
+    }
+    if(event.error === 'network'){
+      setStatus('Ağ hatası, yeniden bağlanılıyor...', 'error');
+      return;
+    }
+    setStatus('Ses tanıma hatası: ' + event.error, 'error');
+  };
+
+  recognition.onresult = (event) => {
+    let interimText = '';
+    for(let i = event.resultIndex; i < event.results.length; i++){
+      const result = event.results[i];
+      const transcript = result[0].transcript;
+      if(result.isFinal){
+        const clean = transcript.trim();
+        if(clean) pushFinalChunk(clean);
+      }else{
+        interimText += transcript;
+      }
+    }
+    if(interimText.trim()){
+      interimCaption.textContent = interimText.trim();
+      interimCaption.classList.add('show');
+    }else{
+      interimCaption.classList.remove('show');
+    }
+  };
+
+  // Mobile browsers can silently suspend the recognition session while the
+  // tab is backgrounded or the phone is locked, without ever firing onend.
+  // When the page becomes visible again, check whether we're supposed to
+  // still be listening and recover if not.
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState !== 'visible') return;
+    if(!micEngaged || isListening || fatalError) return;
+    clearTimeout(restartTimer);
+    try{
+      recognition.lang = sourceLang.value;
+      recognition.continuous = continuousToggle.checked;
+      recognition.start();
+    }catch(e){ /* normal restart path will retry if this fails */ }
+  });
+}
+
+/* ---------------- TRANSCRIPT / TRANSLATION (MAIN MODE) ---------------- */
+
+function addBubble(text, sourceApi){
+  if(emptyState && emptyState.parentNode) emptyState.remove();
+  const wrap = document.createElement('div');
+  wrap.className = 'msg';
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const time = new Date().toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
+  meta.textContent = `${LANGS[sourceApi].flag} ${LANGS[sourceApi].label} · ${time}`;
+
+  const orig = document.createElement('div');
+  orig.className = 'orig';
+  orig.textContent = text;
+
+  const trans = document.createElement('div');
+  trans.className = 'trans';
+  trans.textContent = 'Çevriliyor...';
+
+  wrap.append(meta, orig, trans);
+  transcriptEl.appendChild(wrap);
+  transcriptEl.scrollTop = transcriptEl.scrollHeight;
+  return trans;
+}
+
+// Immediate path — used by the typed/dictated fallback where the user has
+// already delimited their thought by pressing "Gönder", so there's nothing
+// to merge or wait for.
+function handleFinalSegment(text){
+  interimCaption.classList.remove('show');
+  interimCaption.textContent = '';
+  const source = getSourceApiLang();
+  const target = targetLang.value;
+  const transEl = addBubble(text, source);
+  translateQueue = translateQueue.then(() => translateSegment(text, source, target, transEl)).catch(() => {});
+}
+
+// Buffered path — used by live mic recognition. Merges finals that arrive
+// close together (the browser fires "final" far more eagerly than a real
+// sentence boundary) and only commits to translation after a short silence,
+// or once the buffer gets long enough that waiting longer isn't worth it.
+function pushFinalChunk(chunk){
+  const clean = chunk.replace(/\s+/g, ' ').trim();
+  if(!clean) return;
+  const source = getSourceApiLang();
+  if(segmentBuffer && segmentSourceApi !== source){
+    flushSegmentBuffer(); // language changed mid-buffer — commit what we had first
+  }
+  segmentSourceApi = source;
+  segmentBuffer = segmentBuffer ? segmentBuffer + ' ' + clean : clean;
+  clearTimeout(segmentTimer);
+  if(segmentBuffer.length >= SEGMENT_MAX_CHARS){
+    flushSegmentBuffer();
+  }else{
+    segmentTimer = setTimeout(flushSegmentBuffer, SEGMENT_COMMIT_DELAY);
+  }
+}
+
+function flushSegmentBuffer(){
+  clearTimeout(segmentTimer);
+  if(!segmentBuffer) return;
+  const text = segmentBuffer;
+  const source = segmentSourceApi;
+  segmentBuffer = '';
+  segmentSourceApi = null;
+  const target = targetLang.value;
+  const transEl = addBubble(text, source);
+  translateQueue = translateQueue.then(() => translateSegment(text, source, target, transEl)).catch(() => {});
+}
+
+async function translateSegment(text, source, target, transEl){
+  transEl.classList.add('pending');
+  try{
+    const result = await translateText(text, source, target);
+    transEl.textContent = (result.lowConfidence ? '≈ ' : '') + result.text;
+    transEl.title = result.lowConfidence ? 'Bu çevirinin güvenilirliği düşük olabilir' : '';
+    transEl.classList.remove('pending');
+    setStatus(isListening ? (continuousToggle.checked ? 'Dinleniyor... Sürekli mod aktif.' : 'Dinleniyor...') : `Tamamlandı: ${LANGS[source].label} → ${LANGS[target].label}`, 'success');
+
+    if(autoSpeakToggle.checked && 'speechSynthesis' in window){
+      speak(result.text, target);
+    }
+  }catch(err){
+    transEl.classList.remove('pending');
+    transEl.textContent = translateErrorMessage(err);
+    transEl.classList.add('err');
+    setStatus('Çeviri hatası oluştu.', 'error');
+  }
+}
+
+function translateErrorMessage(err){
+  if(err && err.tooLong) return 'Metin çok uzun (500 karakter sınırı) ve yedek çeviri servisi de yanıt vermedi. Metni kısaltıp tekrar deneyin.';
+  if(err && err.quota) return 'Çeviri servisleri şu anda kullanılamıyor (günlük kota doldu). Birkaç saat sonra tekrar deneyin.';
+  if(err && err.name === 'AbortError') return 'Çeviri zaman aşımına uğradı. Tekrar deneyin.';
+  return 'Çeviri yapılamadı. İnternet bağlantısını kontrol edin.';
+}
+
+async function translateViaMyMemory(text, fromCode, toCode, signal){
+  const langpair = `${LANGS[fromCode].t}|${LANGS[toCode].t}`;
+  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langpair}`;
+  const res = await fetch(url, {signal});
+  if(!res.ok) throw new Error('http');
+  const data = await res.json();
+  const translation = data && data.responseData && data.responseData.translatedText;
+  if(!translation) throw new Error('empty');
+  if(/QUERY LENGTH LIMIT/i.test(translation)){
+    const e = new Error('length'); e.tooLong = true; throw e;
+  }
+  if(/MYMEMORY WARNING|INVALID (SOURCE|TARGET)/i.test(translation)){
+    const e = new Error('quota'); e.quota = true; throw e;
+  }
+  const match = data.responseData.match;
+  return { text: cleanText(translation), lowConfidence: typeof match === 'number' && match < 0.5 };
+}
+
+// Unofficial but widely-used free Google Translate endpoint — no key needed,
+// and it doesn't share MyMemory's 500-character-per-query cap or daily quota,
+// so it's a solid fallback for exactly the cases MyMemory can't handle.
+async function translateViaGoogleBackup(text, fromCode, toCode, signal){
+  const sl = LANGS[fromCode].t;
+  const tl = LANGS[toCode].t;
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`;
+  const res = await fetch(url, {signal});
+  if(!res.ok) throw new Error('http');
+  const data = await res.json();
+  const translated = Array.isArray(data) && Array.isArray(data[0])
+    ? data[0].map(seg => seg[0]).join('')
+    : '';
+  if(!translated) throw new Error('empty');
+  return { text: cleanText(translated), lowConfidence: false };
+}
+
+function cacheResult(key, result){
+  if(translateCache.size >= 50) translateCache.delete(translateCache.keys().next().value);
+  translateCache.set(key, result);
+}
+
+// Shared translation call used by both the main transcript and face-to-face
+// mode: retries once on transient MyMemory failures, times out instead of
+// hanging forever, detects MyMemory's free-quota / 500-char-limit warnings
+// (which the API otherwise returns as if they were normal translations!),
+// falls back to a second provider when MyMemory can't deliver, and caches
+// repeats.
+async function translateText(text, fromCode, toCode, retries=1){
+  const cacheKey = `${fromCode}|${toCode}|${text}`;
+  if(translateCache.has(cacheKey)) return translateCache.get(cacheKey);
+
+  let lastErr = null;
+  for(let attempt = 0; attempt <= retries; attempt++){
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 9000);
+    try{
+      const result = await translateViaMyMemory(text, fromCode, toCode, controller.signal);
+      clearTimeout(timeoutId);
+      cacheResult(cacheKey, result);
+      return result;
+    }catch(err){
+      clearTimeout(timeoutId);
+      lastErr = err;
+      // A too-long query or an exhausted daily quota won't fix itself on
+      // retry — skip straight to the backup provider instead of wasting time.
+      if(err && (err.tooLong || err.quota)) break;
+      if(attempt < retries) await new Promise(r => setTimeout(r, 800));
+    }
+  }
+
+  try{
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 9000);
+    const result = await translateViaGoogleBackup(text, fromCode, toCode, controller.signal);
+    clearTimeout(timeoutId);
+    cacheResult(cacheKey, result);
+    return result;
+  }catch(backupErr){
+    throw lastErr || backupErr;
+  }
+}
+
+function cleanText(text){
+  const div = document.createElement('div');
+  div.innerHTML = text;
+  return div.textContent || div.innerText || '';
+}
+
+function speak(text, targetApi){
+  try{
+    if(!('speechSynthesis' in window)) return;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = LANGS[targetApi].speech;
+    // iOS Safari sometimes cuts off longer utterances; a periodic pause/resume
+    // nudge is a well-known workaround that keeps it talking to the end.
+    let keepAlive = null;
+    utter.onstart = () => {
+      keepAlive = setInterval(() => {
+        if(speechSynthesis.speaking){ speechSynthesis.pause(); speechSynthesis.resume(); }
+      }, 9000);
+    };
+    utter.onend = utter.onerror = () => { if(keepAlive) clearInterval(keepAlive); };
+    speechSynthesis.speak(utter);
+  }catch(e){ /* speech synthesis not critical, fail silently */ }
+}
+
+/* ---------------- ACTIONS ---------------- */
+
+function getTranscriptData(){
+  return [...transcriptEl.querySelectorAll('.msg')].map(b => ({
+    meta: b.querySelector('.meta').textContent,
+    orig: b.querySelector('.orig').textContent,
+    trans: b.querySelector('.trans').textContent
+  }));
+}
+
+$('exportBtn').addEventListener('click', () => {
+  const data = getTranscriptData();
+  if(!data.length){ setStatus('Aktarılacak konuşma yok.', 'error'); return; }
+  const lines = data.map(d => `[${d.meta}]\n${d.orig}\n→ ${d.trans}\n`).join('\n');
+  const blob = new Blob([lines], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `konusma-${Date.now()}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setStatus('Konuşma indirildi.', 'success');
+});
+
+$('copyAllBtn').addEventListener('click', async () => {
+  const data = getTranscriptData();
+  if(!data.length){ setStatus('Kopyalanacak konuşma yok.', 'error'); return; }
+  const lines = data.map(d => `[${d.meta}]\n${d.orig}\n→ ${d.trans}`).join('\n\n');
+  try{
+    await navigator.clipboard.writeText(lines);
+    setStatus('Konuşma kopyalandı.', 'success');
+  }catch(e){
+    setStatus('Kopyalama başarısız oldu.', 'error');
+  }
+});
+
+$('clearBtn').addEventListener('click', () => {
+  transcriptEl.innerHTML = '<div class="empty" id="emptyState">Henüz bir konuşma yok. Mikrofona basıp konuşmaya başlayın.</div>';
+  setStatus('Temizlendi. Konuşmak için mikrofona basın.');
+});
+
+/* ---------------- KEYBOARD SHORTCUT ---------------- */
+
+document.addEventListener('keydown', (e) => {
+  if(e.code !== 'Space') return;
+  const tag = document.activeElement.tagName;
+  if(tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') return;
+  e.preventDefault();
+  micBtn.click();
+});
+
+/* ---------------- FACE TO FACE MODE ---------------- */
+
+let f2fBottomRec = null;
+let f2fTopRec = null;
+let f2fDictateDirection = 'bottom';
+
+async function handleFaceFinal(text, fromCode, toCode, destTextEl){
+  destTextEl.textContent = 'Çevriliyor...';
+  destTextEl.classList.remove('err');
+  destTextEl.classList.add('pending');
+  try{
+    const result = await translateText(text, fromCode, toCode);
+    destTextEl.textContent = (result.lowConfidence ? '≈ ' : '') + result.text;
+    destTextEl.classList.remove('pending');
+    if(autoSpeakToggle.checked) speak(result.text, toCode);
+  }catch(e){
+    destTextEl.classList.remove('pending');
+    destTextEl.textContent = translateErrorMessage(e);
+    destTextEl.classList.add('err');
+  }
+}
+
+function wireF2FRecognition(rec, micEl, otherMicEl, statusEl, getFromLang, getToLang, destTextEl){
+  let listening = false;
+  micEl.addEventListener('click', () => {
+    if(!listening){
+      try{
+        rec.lang = LANGS[getFromLang()].speech;
+        rec.start();
+      }catch(e){ statusEl.textContent = 'Başlatılamadı, tekrar deneyin.'; }
+    }else{
+      rec.stop();
+    }
+  });
+  rec.onstart = () => {
+    listening = true;
+    micEl.classList.add('listening');
+    micEl.innerText = '■';
+    otherMicEl.disabled = true;
+    statusEl.textContent = 'Dinleniyor...';
+  };
+  rec.onend = () => {
+    listening = false;
+    micEl.classList.remove('listening');
+    micEl.innerText = '🎤';
+    otherMicEl.disabled = false;
+    if(statusEl.textContent === 'Dinleniyor...') statusEl.textContent = '';
+  };
+  rec.onerror = (e) => {
+    if(e.error === 'no-speech' || e.error === 'aborted') return;
+    const msgs = {
+      'not-allowed':'Mikrofon izni yok.', 'service-not-allowed':'Mikrofon izni yok.',
+      'audio-capture':'Mikrofon bulunamadı.', 'network':'Ağ hatası.'
+    };
+    statusEl.textContent = msgs[e.error] || ('Hata: ' + e.error);
+  };
+  rec.onresult = (event) => {
+    let interim = '';
+    let hadFinal = false;
+    for(let i = event.resultIndex; i < event.results.length; i++){
+      const r = event.results[i];
+      if(r.isFinal){
+        hadFinal = true;
+        const clean = r[0].transcript.trim();
+        if(clean) handleFaceFinal(clean, getFromLang(), getToLang(), destTextEl);
+      }else{
+        interim += r[0].transcript;
+      }
+    }
+    if(hadFinal){
+      statusEl.textContent = '';
+    }else if(interim.trim()){
+      statusEl.textContent = interim.trim();
+    }
+  };
+}
+
+if(SpeechRecognition){
+  f2fBottomRec = new SpeechRecognition();
+  f2fBottomRec.interimResults = true;
+  f2fBottomRec.maxAlternatives = 1;
+  f2fBottomRec.continuous = false;
+  wireF2FRecognition(f2fBottomRec, $('f2fBottomMic'), $('f2fTopMic'), $('f2fBottomStatus'),
+    () => getSourceApiLang(), () => targetLang.value, $('f2fTopText'));
+
+  f2fTopRec = new SpeechRecognition();
+  f2fTopRec.interimResults = true;
+  f2fTopRec.maxAlternatives = 1;
+  f2fTopRec.continuous = false;
+  wireF2FRecognition(f2fTopRec, $('f2fTopMic'), $('f2fBottomMic'), $('f2fTopStatus'),
+    () => targetLang.value, () => getSourceApiLang(), $('f2fBottomText'));
+}else{
+  // Same iPhone limitation as main mode — swap both mics for a shared
+  // dictation bar that routes to whichever side is speaking.
+  $('f2fBottomMic').style.display = 'none';
+  $('f2fTopMic').style.display = 'none';
+  $('f2fDictateBar').classList.add('active');
+}
+
+$('f2fDirBottom').addEventListener('click', () => {
+  f2fDictateDirection = 'bottom';
+  $('f2fDirBottom').classList.add('active');
+  $('f2fDirTop').classList.remove('active');
+});
+$('f2fDirTop').addEventListener('click', () => {
+  f2fDictateDirection = 'top';
+  $('f2fDirTop').classList.add('active');
+  $('f2fDirBottom').classList.remove('active');
+});
+
+function submitF2FDictate(){
+  const input = $('f2fDictateInput');
+  const text = input.value.trim();
+  if(!text) return;
+  const srcCode = getSourceApiLang();
+  const tgtCode = targetLang.value;
+  if(f2fDictateDirection === 'bottom'){
+    handleFaceFinal(text, srcCode, tgtCode, $('f2fTopText'));
+  }else{
+    handleFaceFinal(text, tgtCode, srcCode, $('f2fBottomText'));
+  }
+  input.value = '';
+  input.focus();
+}
+$('f2fDictateSend').addEventListener('click', submitF2FDictate);
+$('f2fDictateInput').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter'){ e.preventDefault(); submitF2FDictate(); }
+});
+
+function updateF2FLabels(){
+  const srcCode = getSourceApiLang();
+  const tgtCode = targetLang.value;
+  $('f2fBottomLang').textContent = `${LANGS[srcCode].flag} ${LANGS[srcCode].label}`;
+  $('f2fTopLang').textContent = `${LANGS[tgtCode].flag} ${LANGS[tgtCode].label}`;
+}
+
+function enterF2F(){
+  clearTimeout(restartTimer);
+  manualStop = true;
+  micEngaged = false;
+  flushSegmentBuffer();
+  if(recognition && isListening) recognition.stop();
+  updateF2FLabels();
+  $('f2fBottomText').textContent = '…';
+  $('f2fTopText').textContent = '…';
+  $('f2fBottomStatus').textContent = '';
+  $('f2fTopStatus').textContent = '';
+  $('f2fOverlay').classList.add('active');
+  document.body.classList.add('f2f-lock');
+}
+
+function exitF2F(){
+  if(f2fBottomRec){ try{ f2fBottomRec.stop(); }catch(e){} }
+  if(f2fTopRec){ try{ f2fTopRec.stop(); }catch(e){} }
+  $('f2fOverlay').classList.remove('active');
+  document.body.classList.remove('f2f-lock');
+}
+
+$('f2fEnterBtn').addEventListener('click', enterF2F);
+$('f2fClose').addEventListener('click', exitF2F);
+$('f2fSwap').addEventListener('click', () => { swapBtn.click(); updateF2FLabels(); });
+
+normalizeLangs();
+</script>
+
+</body>
+</html>
